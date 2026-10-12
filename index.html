@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bot control room</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef0f8;--ink:#1a1b34;--mute:#6a6d8c;--panel:#fff;--line:#dcdff0;--navy:#1d1e4a;--accent:#5865f2;--accent2:#4752d6;--risk:#d6455d;--ok:#1f9d6b;--r:14px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 "Bricolage Grotesque",system-ui,sans-serif;display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+aside{background:var(--navy);color:#e8eaff;padding:22px 16px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
+aside h1{font-size:20px;font-weight:800;margin:0 8px 14px}
+aside .srv{display:flex;align-items:center;gap:10px;background:none;border:0;color:inherit;padding:9px 10px;border-radius:12px;cursor:pointer;text-align:left;width:100%}
+aside .srv:hover{background:#ffffff14}
+aside .srv[aria-current=true]{background:var(--accent)}
+.av{width:34px;height:34px;border-radius:50%;background:#ffffff26;display:grid;place-items:center;font-weight:800;overflow:hidden;flex:none}
+.av img{width:100%;height:100%}
+.stat{margin-top:auto;font-size:13px;color:#aab0e6;padding:0 8px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:6px}
+main{padding:28px clamp(16px,4vw,48px);max-width:980px;width:100%}
+.cmd{background:var(--navy);color:#fff;border-radius:22px;padding:26px;margin-bottom:22px}
+.cmd h2{margin:0 0 4px;font-size:30px;font-weight:800;letter-spacing:-.02em}
+.cmd p{margin:0 0 16px;color:#b9bdf0}
+.bar{display:flex;gap:10px}
+.bar input{flex:1;border:2px solid #ffffff30;background:#ffffff12;border-radius:12px;padding:14px 16px;color:#fff;font-size:17px}
+.bar input::placeholder{color:#9096d6}
+.go{background:var(--accent);border:0;color:#fff;font-weight:600;border-radius:12px;padding:0 24px;cursor:pointer}
+.go:hover{background:var(--accent2)}.go:disabled{opacity:.6;cursor:wait}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chips button{background:#ffffff16;border:0;color:#dfe1ff;border-radius:99px;padding:6px 12px;cursor:pointer;font-size:13px}
+.chips button:hover{background:#ffffff2a}
+#reply{margin-top:14px;background:#ffffff12;border-radius:12px;padding:12px 14px;display:none;white-space:pre-wrap}
+#reply.err{background:#d6455d40}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+section.wide{grid-column:1/-1}
+h3{margin:0 0 12px;font-size:17px;font-weight:600}
+label.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--line)}
+label.row:first-of-type{border-top:0}
+.sub{color:var(--mute);font-size:13px;margin:-6px 0 10px}
+.risk{color:var(--risk);font-size:12px;font-weight:600;margin-left:6px}
+input[type=checkbox]{appearance:none;width:42px;height:24px;border-radius:99px;background:#c9cde6;position:relative;cursor:pointer;flex:none;transition:background .15s}
+input[type=checkbox]::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s}
+input[type=checkbox]:checked{background:var(--accent)}
+input[type=checkbox].r:checked{background:var(--risk)}
+input[type=checkbox]:checked::after{transform:translateX(18px)}
+select,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fafbff}
+textarea{min-height:110px;resize:vertical}
+.save{margin-top:10px;background:var(--navy);color:#fff;border:0;border-radius:10px;padding:10px 18px;font-weight:600;cursor:pointer}
+.log{max-height:260px;overflow:auto;font-size:14px}
+.log div{padding:7px 0;border-top:1px solid var(--line);display:flex;gap:10px}
+.log time{color:var(--mute);flex:none;width:64px}
+.log .bad{color:var(--risk)}
+.empty{color:var(--mute)}
+#login{position:fixed;inset:0;background:var(--navy);display:grid;place-items:center;z-index:9}
+#login form{background:#fff;padding:30px;border-radius:20px;width:min(380px,90vw)}
+#login input{width:100%;margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:10px}
+#toast{position:fixed;bottom:20px;right:20px;background:var(--navy);color:#fff;padding:10px 16px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.on{opacity:1}
+@media(max-width:800px){body{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center}aside h1{width:100%}.stat{display:none}.grid{grid-template-columns:1fr}.bar{flex-direction:column}.go{padding:12px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="login"><form id="lf"><h2 style="margin:0">Bot control room</h2><p class="sub" style="margin:6px 0 0">Enter the dashboard password you set in your .env file.</p><input id="pw" type="password" placeholder="Password" autocomplete="current-password" required><button class="go" style="padding:12px 24px;width:100%">Sign in</button><p id="lerr" class="risk"></p></form></div>
+<aside><h1>Control room</h1><div id="servers"></div><div class="stat" id="stat"></div></aside>
+<main>
+  <div class="cmd">
+    <h2>Tell the bot what to do</h2>
+    <p id="target">Pick a server on the left.</p>
+    <form class="bar" id="cf"><input id="ci" placeholder="Make a #game-night channel and give Sam the Mod role" aria-label="Instruction for the bot" required><button class="go" id="cb">Run</button></form>
+    <div class="chips" id="chips"></div>
+    <div id="reply" role="status"></div>
+  </div>
+  <div class="grid" id="grid"></div>
+</main>
+<div id="toast" role="status"></div>
+<script>
+let token=sessionStorage.getItem('t')||'',state=null,gid=localStorage.getItem('g');
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function api(p,body){const r=await fetch('/api'+p,{method:body?'POST':'GET',headers:{'x-token':token,'content-type':'application/json'},body:body&&JSON.stringify(body)});const j=await r.json();if(!r.ok)throw Error(j.error||'Request failed');return j}
+function toast(t){const e=$('#toast');e.textContent=t;e.className='on';setTimeout(()=>e.className='',1800)}
+async function load(){try{state=await api('/state');$('#login').style.display='none';render()}catch(e){$('#login').style.display='grid';if(token)$('#lerr').textContent=e.message}}
+$('#lf').onsubmit=e=>{e.preventDefault();token=$('#pw').value;sessionStorage.setItem('t',token);load()};
+const cur=()=>state.guilds.find(g=>g.id===gid)||state.guilds[0];
+function render(){
+  const g=cur();if(!g){$('#target').textContent='The bot is not in any server yet. Invite it, then refresh.';return}
+  gid=g.id;localStorage.setItem('g',gid);
+  $('#servers').innerHTML=state.guilds.map(s=>`<button class="srv" data-id="${s.id}" aria-current="${s.id===gid}"><span class="av">${s.icon?`<img src="${s.icon}" alt="">`:esc(s.name[0])}</span><span>${esc(s.name)}<br><small style="opacity:.7">${s.members} members</small></span></button>`).join('');
+  $('#stat').innerHTML=`<span class="dot"></span>${esc(state.bot.tag||'Connecting')}<br>${state.bot.ping}ms latency`;
+  $('#target').textContent=`Acting in ${g.name}. Server actions you turn on below are available here.`;
+  $('#chips').innerHTML=['Summarize what each channel is for','Create a #announcements channel','Make a Member role colored #5865F2'].map(t=>`<button type="button">${t}</button>`).join('');
+  const s=g.settings,A=state.actions;
+  const tog=(k)=>`<label class="row"><span>${A[k]}${state.risky.includes(k)?'<span class="risk">Risky</span>':''}</span><input type="checkbox" data-a="${k}" class="${state.risky.includes(k)?'r':''}" ${s.actions[k]?'checked':''}></label>`;
+  $('#grid').innerHTML=`
+  <section><h3>Behavior</h3><label class="row"><span>Bot replies to @mentions</span><input type="checkbox" id="en" ${s.enabled?'checked':''}></label>
+   <p class="sub">Model</p><select id="md">${state.models.map(m=>`<option ${m===s.model?'selected':''}>${m}</option>`).join('')}</select>
+   <p class="sub" style="margin-top:14px">Only answer in these channels (none selected means all)</p><select id="chs" multiple size="4">${g.channels.map(c=>`<option value="${c.id}" ${s.channels.includes(c.id)?'selected':''}>#${esc(c.name)}</option>`).join('')}</select></section>
+  <section><h3>Personality</h3><p class="sub">How the bot talks and what it knows about your group.</p><textarea id="pe">${esc(s.personality)}</textarea></section>
+  <section><h3>Safe actions</h3><p class="sub">Only members with Manage Server can trigger these in chat.</p>${Object.keys(A).filter(k=>!state.risky.includes(k)).map(tog).join('')}</section>
+  <section><h3>Risky actions</h3><p class="sub">Off by default. Turn on only what you trust the bot to do.</p>${state.risky.map(tog).join('')}</section>
+  <section class="wide"><button class="save" id="sv">Save changes</button></section>
+  <section class="wide"><h3>Activity</h3><div class="log">${state.log.length?state.log.map(l=>`<div class="${l.ok?'':'bad'}"><time>${new Date(l.t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</time><span><b>${esc(l.who)}</b> in ${esc(l.guild)}: ${esc(l.text)}</span></div>`).join(''):'<p class="empty">Nothing yet. Actions the bot takes will show up here.</p>'}</div></section>`;
+}
+document.addEventListener('click',e=>{
+  const s=e.target.closest('.srv');if(s){gid=s.dataset.id;render()}
+  if(e.target.closest('#chips button'))$('#ci').value=e.target.textContent,$('#ci').focus();
+  if(e.target.id==='sv'){const actions={};document.querySelectorAll('[data-a]').forEach(i=>actions[i.dataset.a]=i.checked);
+    api('/settings/'+gid,{enabled:$('#en').checked,model:$('#md').value,personality:$('#pe').value,actions,channels:[...$('#chs').selectedOptions].map(o=>o.value)}).then(()=>{toast('Saved');return load()}).catch(x=>toast(x.message))}
+});
+$('#cf').onsubmit=async e=>{e.preventDefault();const b=$('#cb'),r=$('#reply');b.disabled=true;b.textContent='Running...';
+  try{const j=await api('/command',{guildId:gid,text:$('#ci').value});r.className='';r.textContent=j.reply;$('#ci').value='';load()}catch(x){r.className='err';r.textContent=x.message}
+  r.style.display='block';b.disabled=false;b.textContent='Run'};
+setInterval(()=>{if(state&&!document.hidden&&!document.activeElement.matches('textarea,select,input'))api('/state').then(s=>{state=s;$('#stat').innerHTML=`<span class="dot"></span>${esc(s.bot.tag||'')}<br>${s.bot.ping}ms latency`}).catch(()=>{})},15000);
+load();
+</script>
+</body>
+</html>
